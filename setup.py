@@ -23,7 +23,7 @@ def get_requirements()->List[str]:
             # process each line
             for line in lines:
                 requirement = line.strip()
-                #ignore empty lines and -e .
+                #ignore empty lines and -e.
                 if requirement and requirement!='-e .':
                     requirement_lst.append(requirement)
 
