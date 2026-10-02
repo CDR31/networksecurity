@@ -4,4 +4,3 @@ numpy
 pymongo
 certifi
 scikit-learn
--e .
