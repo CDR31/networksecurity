@@ -1,0 +1,27 @@
+[ 2026-10-07 02:02:24,262 ] 16 root - INFO - Initiating the data ingestion process.
+[ 2026-10-07 02:02:32,735 ] 63 root - INFO - Performed train test split on the dataframe
+[ 2026-10-07 02:02:32,735 ] 64 root - INFO - Exited split_data_as_train_test method of the data_ingestion class
+[ 2026-10-07 02:02:32,737 ] 69 root - INFO - Explorting train and test file path.
+[ 2026-10-07 02:02:32,802 ] 72 root - INFO - Exported train and test file paths.
+[ 2026-10-07 02:02:32,802 ] 18 root - INFO - Data Ingestion Completed.
+[ 2026-10-07 02:02:32,809 ] 22 root - INFO - Initiate the data validation
+[ 2026-10-07 02:02:32,918 ] 284 root - INFO - Train dataframe shape: (8844, 31)
+[ 2026-10-07 02:02:32,918 ] 289 root - INFO - Test dataframe shape: (2211, 31)
+[ 2026-10-07 02:02:32,918 ] 175 root - INFO - Required number of columns: 31
+[ 2026-10-07 02:02:32,918 ] 179 root - INFO - Dataframe has columns: 31
+[ 2026-10-07 02:02:32,918 ] 175 root - INFO - Required number of columns: 31
+[ 2026-10-07 02:02:32,918 ] 179 root - INFO - Dataframe has columns: 31
+[ 2026-10-07 02:02:33,111 ] 387 root - INFO - Data validation artifact: DataValidationArtifact(validation_status=True, valid_train_file_path='Artifacts\\10_07_2026_02_02_18\\data_validation\\validated\\train.csv', valid_test_file_path='Artifacts\\10_07_2026_02_02_18\\data_validation\\validated\\test.csv', invalid_train_file_path=None, invalid_test_file_path=None, drift_report_file_path='Artifacts\\10_07_2026_02_02_18\\data_validation\\drift_report\\report.yaml')
+[ 2026-10-07 02:02:33,111 ] 24 root - INFO - data validation completed
+[ 2026-10-07 02:02:33,112 ] 27 root - INFO - data transformation started
+[ 2026-10-07 02:02:33,112 ] 70 root - INFO - Entered initiate_data_transformation method of DataTransformation class
+[ 2026-10-07 02:02:33,112 ] 72 root - INFO - Starting data transformation
+[ 2026-10-07 02:02:33,388 ] 56 root - INFO - Entered get_data-transformer_object method of the Transformation class
+[ 2026-10-07 02:02:33,389 ] 61 root - INFO - Initialise KNNImputer with {'missing_values': nan, 'n_neighbors': 3, 'weights': 'uniform'}
+[ 2026-10-07 02:02:33,434 ] 47 root - INFO - Entered the save_object method of MainUtils class
+[ 2026-10-07 02:02:33,438 ] 51 root - INFO - Exited the save_object method of mainUtils class
+[ 2026-10-07 02:02:33,438 ] 31 root - INFO - data transformation completed.
+[ 2026-10-07 02:02:33,438 ] 33 root - INFO - Model Trainning started
+[ 2026-10-07 02:04:47,333 ] 47 root - INFO - Entered the save_object method of MainUtils class
+[ 2026-10-07 02:04:47,402 ] 51 root - INFO - Exited the save_object method of mainUtils class
+[ 2026-10-07 02:04:47,402 ] 150 root - INFO - Model trainer artifact: ModelTrainerArtifact(trained_model_file_path='Artifacts\\10_07_2026_02_02_18\\model_trainer\\trained_model\\model.pkl', train_metric_artifact=ClassificationMetricArtifact(f1_score=0.9908362463707605, precision_score=0.9908703950467647, recall_score=0.9908412483039348), test_metric_artifact=ClassificationMetricArtifact(f1_score=0.5309464527022358, precision_score=0.5255941699128989, recall_score=0.5364088647670737))
