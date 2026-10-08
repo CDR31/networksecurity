@@ -9,4 +9,3 @@ fastapi
 uvicorn
 mlflow
 pyaml
--e .

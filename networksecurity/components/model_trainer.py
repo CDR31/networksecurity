@@ -25,7 +25,22 @@ import mlflow
 from pathlib import Path
 mlruns_path = Path("mlruns").resolve()
 mlflow.set_tracking_uri(mlruns_path.as_uri())
+# import dagshub
+# import os
+# from dotenv import load_dotenv
 
+# load_dotenv()
+
+# DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
+
+# print("DAGSHUB TOKEN FOUND:", DAGSHUB_TOKEN is not None)
+# dagshub.init(repo_owner='CDR31', repo_name='networksecurity', mlflow=True)
+
+import mlflow
+from pathlib import Path
+
+mlruns_path = Path("mlruns").resolve()
+mlflow.set_tracking_uri(mlruns_path.as_uri())
 
 class ModelTrainer:
     def __init__(self,model_trainer_config:ModelTrainerConfig,data_transformation_artifact:DataTransformationArtifact):
@@ -134,19 +149,54 @@ class ModelTrainer:
         classification_test_metric = get_classification_score(y_true=y_test,y_pred = y_test_pred)
         # self.track_mlflow(best_model,classification_test_metric)
 
-        preprocessor = load_object(file_path=self.data_transformation_artifact.transformed_object_file_path)
-        model_dir_path = os.path.dirname(self.model_trainer_config.trained_model_file_path)
-        os.makedirs(model_dir_path,exist_ok=True)
+        preprocessor = load_object(
+            file_path=self.data_transformation_artifact.transformed_object_file_path
+        )
 
-        Network_model = NetworkModel(preprocessor=preprocessor,model = best_model)
-        save_object(self.model_trainer_config.trained_model_file_path,obj = Network_model)
-        ## Model trainer artifacts
+    # Create final_models directory
+        final_model_dir = "final_models"
+        os.makedirs(final_model_dir, exist_ok=True)
+
+    # Paths
+        model_path = os.path.join(final_model_dir, "model.pkl")
+        preprocessor_path = os.path.join(final_model_dir, "preprocessor.pkl")
+
+    # Save model
+        save_object(
+        file_path=model_path,
+        obj=best_model
+        )
+
+    # Save preprocessor
+        save_object(
+        file_path=preprocessor_path,
+        obj=preprocessor
+        )
+
+    # Create combined NetworkModel
+        Network_model = NetworkModel(
+        preprocessor=preprocessor,
+        model=best_model
+        )
+
+    # Save combined model using your existing configured path
+        save_object(
+        file_path=self.model_trainer_config.trained_model_file_path,
+        obj=Network_model
+        )
+
+        print(f"Model saved at: {model_path}")
+        print(f"Preprocessor saved at: {preprocessor_path}")
+        print(
+        f"Network model saved at: "
+            f"{self.model_trainer_config.trained_model_file_path}"
+            )
 
         model_trainer_artifact = ModelTrainerArtifact(
-                    trained_model_file_path=self.model_trainer_config.trained_model_file_path,
-                    train_metric_artifact=classification_train_metric,
-                    test_metric_artifact=classification_test_metric,
-                    )
+                        trained_model_file_path=self.model_trainer_config.trained_model_file_path,
+                        train_metric_artifact=classification_train_metric,
+                        test_metric_artifact=classification_test_metric,
+                        )
         logging.info(f"Model trainer artifact: {model_trainer_artifact}")
         return model_trainer_artifact
 
