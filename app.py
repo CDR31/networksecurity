@@ -45,7 +45,8 @@ app.add_middleware(
 )
 
 from fastapi.templating import Jinja2Templates
-templates = Jinja2Templates(directory="./templates")
+# templates = Jinja2Templates(directory="./templates")
+templates = Jinja2Templates(directory="template")
 
 @app.get("/",tags=['authentication'])
 async def index():
@@ -60,25 +61,70 @@ async def train_route():
     except Exception as e:
         raise NetworkSecurityException(e,sys)
 
-@app.get("/predict")
-async def predict_route(request:Request,file:UploadFile=File(...)):
+@app.post("/predict")
+async def predict_route(
+    request: Request,
+    file: UploadFile = File(...)
+):
     try:
+        # Validate the uploaded file
+        if not file.filename or not file.filename.lower().endswith(".csv"):
+            return Response(
+                content="Please upload a valid CSV file.",
+                status_code=400
+            )
+
+        # Read the uploaded CSV
         df = pd.read_csv(file.file)
 
-        preprocessor = load_object("final_model/preprocessor.pkl")
-        final_model = load_object("final_model/model.pkl")
-        network_model = NetworkModel(preprocessor=preprocessor,model = final_model)
-        print(df.iloc[0])
+        if df.empty:
+            return Response(
+                content="The uploaded CSV file is empty.",
+                status_code=400
+            )
+
+        # Load the trained model and preprocessor
+        preprocessor = load_object("final_models/preprocessor.pkl")
+        final_model = load_object("final_models/model.pkl")
+
+        network_model = NetworkModel(
+            preprocessor=preprocessor,
+            model=final_model
+        )
+
+        # Generate predictions
         y_pred = network_model.predict(df)
-        print(y_pred)
-        df['predicted_column'] = y_pred
-        print(df['predicted_column'])
-        df.to_csv("prediction_output/output.csv")
-        table_html = df.to_html(classes='table table-striped')
-        return templates.TemplateResponse("table.html",{'request':request,"table":table_html})
+
+        # Add predictions to the dataframe
+        df["predicted_column"] = y_pred
+
+        # Save prediction results
+        os.makedirs("prediction_output", exist_ok=True)
+
+        df.to_csv(
+            "prediction_output/output.csv",
+            index=False
+        )
+
+        # Convert results into an HTML table
+        table_html = df.to_html(
+            index=False,
+            classes="table table-striped"
+        )
+
+        return templates.TemplateResponse(
+            request=request,
+            name="table.html",
+            context={"table": table_html}
+        )
 
     except Exception as e:
-        raise NetworkSecurityException(e,sys)
+        logging.exception("Prediction failed")
+
+        raise NetworkSecurityException(e, sys)
+
+    finally:
+        await file.close()
 
 if __name__=="__main__":
     app_run(app,host="localhost",port = 8000)

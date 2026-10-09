@@ -1,0 +1,23 @@
+artifact_path: file:///C:/Users/pankaj rajpoot/OneDrive/Desktop/NETWORKSECURITY/mlruns/1/models/m-e31961f69ec5486c94bac7f693ccec1e/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.11.9
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.9.1
+    skops_trusted_types: null
+mlflow_version: 3.16.1
+model_id: m-e31961f69ec5486c94bac7f693ccec1e
+model_size_bytes: 13499057
+model_uuid: m-e31961f69ec5486c94bac7f693ccec1e
+prompts: null
+run_id: 02d1db78569e47419097c6a841a77551
+utc_time_created: '2026-10-09 09:43:13.509661'

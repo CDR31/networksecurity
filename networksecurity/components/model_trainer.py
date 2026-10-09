@@ -1,222 +1,372 @@
 import os
 import sys
+from pathlib import Path
+
+import mlflow
+import mlflow.sklearn
 
 from networksecurity.exception.exception import NetworkSecurityException
 from networksecurity.logging.logger import logging
 
-from networksecurity.entity.artifact_entity import DataTransformationArtifact,ModelTrainerArtifact
+from networksecurity.entity.artifact_entity import (
+    DataTransformationArtifact,
+    ModelTrainerArtifact
+)
+
 from networksecurity.entity.config_entity import ModelTrainerConfig
 
 from networksecurity.utils.ml_utils.model.estimator import NetworkModel
-from networksecurity.utils.main_utils.utils import save_object,load_object
-from networksecurity.utils.main_utils.utils import load_numpy_array_data,evaluate_models
-from networksecurity.utils.ml_utils.metric.classification_metric import get_classification_score
+
+from networksecurity.utils.main_utils.utils import (
+    save_object,
+    load_object,
+    load_numpy_array_data,
+    evaluate_models
+)
+
+from networksecurity.utils.ml_utils.metric.classification_metric import (
+    get_classification_score
+)
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import r2_score
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import (
     AdaBoostClassifier,
     GradientBoostingClassifier,
     RandomForestClassifier
 )
-import mlflow
-from pathlib import Path
-mlruns_path = Path("mlruns").resolve()
-mlflow.set_tracking_uri(mlruns_path.as_uri())
-# import dagshub
-# import os
-# from dotenv import load_dotenv
 
-# load_dotenv()
+# ==========================================
+# MLflow Configuration
+# ==========================================
 
-# DAGSHUB_TOKEN = os.getenv("DAGSHUB_TOKEN")
+mlflow_db_path = Path("mlflow.db").resolve()
 
-# print("DAGSHUB TOKEN FOUND:", DAGSHUB_TOKEN is not None)
-# dagshub.init(repo_owner='CDR31', repo_name='networksecurity', mlflow=True)
+mlflow.set_tracking_uri(
+    f"sqlite:///{mlflow_db_path.as_posix()}"
+)
 
-import mlflow
-from pathlib import Path
+mlflow.set_experiment("NetworkSecurity_Experiment")
 
-mlruns_path = Path("mlruns").resolve()
-mlflow.set_tracking_uri(mlruns_path.as_uri())
+
+# ==========================================
+# Model Trainer Class
+# ==========================================
 
 class ModelTrainer:
-    def __init__(self,model_trainer_config:ModelTrainerConfig,data_transformation_artifact:DataTransformationArtifact):
+
+    def __init__(
+        self,
+        model_trainer_config: ModelTrainerConfig,
+        data_transformation_artifact: DataTransformationArtifact
+    ):
         try:
             self.model_trainer_config = model_trainer_config
             self.data_transformation_artifact = data_transformation_artifact
 
         except Exception as e:
-            raise NetworkSecurityException(e,sys) 
+            raise NetworkSecurityException(e, sys)
 
-    # def track_mlflow(self,best_model,classificationmetric):
-    #     with mlflow.start_run():
-    #         f1_score = classificationmetric.f1_score
-    #         precision_score = classificationmetric.precision_score
-    #         recall_score = classificationmetric.recall_score
+    # ==========================================
+    # MLflow Tracking
+    # ==========================================
 
-    #         mlflow.log_metric("f1_score",f1_score)
-    #         mlflow.log_metric("precision",precision_score)
-    #         mlflow.log_metric("recall_score",recall_score)
-    #         mlflow.sklearn.log_model(best_model,"model")
+    def track_mlflow(
+        self,
+        best_model,
+        classification_train_metric,
+        classification_test_metric
+    ):
+        try:
+            with mlflow.start_run():
 
-    def track_mlflow(self,best_model,classification_train_metric,classification_test_metric):
-        with mlflow.start_run():
+                # Log model name
+                mlflow.log_param(
+                    "model_name",
+                    type(best_model).__name__
+                )
 
-            mlflow.log_metric(
-            "train_f1_score",
-            classification_train_metric.f1_score
-        )
+                # Training metrics
+                mlflow.log_metric(
+                    "train_f1_score",
+                    classification_train_metric.f1_score
+                )
 
-        mlflow.log_metric(
-            "train_precision",
-            classification_train_metric.precision_score
-        )
+                mlflow.log_metric(
+                    "train_precision",
+                    classification_train_metric.precision_score
+                )
 
-        mlflow.log_metric(
-            "train_recall",
-            classification_train_metric.recall_score
-        )
+                mlflow.log_metric(
+                    "train_recall",
+                    classification_train_metric.recall_score
+                )
 
-        mlflow.log_metric(
-            "test_f1_score",
-            classification_test_metric.f1_score
-        )
+                # Testing metrics
+                mlflow.log_metric(
+                    "test_f1_score",
+                    classification_test_metric.f1_score
+                )
 
-        mlflow.log_metric(
-            "test_precision",
-            classification_test_metric.precision_score
-        )
+                mlflow.log_metric(
+                    "test_precision",
+                    classification_test_metric.precision_score
+                )
 
-        mlflow.log_metric(
-            "test_recall",
-            classification_test_metric.recall_score
-        )
+                mlflow.log_metric(
+                    "test_recall",
+                    classification_test_metric.recall_score
+                )
 
-        mlflow.sklearn.log_model(
-            best_model,
-            "model"
-        )
+                # Log trained model
+                # Log the trained model using pickle serialization
+                mlflow.sklearn.log_model(
+                sk_model=best_model,
+                name="model",
+                serialization_format="cloudpickle"
+                )
 
-    def train_model(self,x_train,y_train,x_test,y_test):
+                logging.info(
+                    "MLflow metrics and model logged successfully."
+                )
+
+        except Exception as e:
+            raise NetworkSecurityException(e, sys)
+
+    # ==========================================
+    # Model Training
+    # ==========================================
+
+    def train_model(self, x_train, y_train, x_test, y_test):
+
         models = {
-            'Random Forest':RandomForestClassifier(verbose=1),
-            'Decision Tree':DecisionTreeClassifier(),
-            'Gradient Boosting':GradientBoostingClassifier(verbose=1),
-            'Logistic Regression':LogisticRegression(verbose=1),
-            'AdaBoost':AdaBoostClassifier(),
+            "Random Forest": RandomForestClassifier(verbose=1),
+            "Decision Tree": DecisionTreeClassifier(),
+            "Gradient Boosting": GradientBoostingClassifier(verbose=1),
+            "Logistic Regression": LogisticRegression(verbose=1),
+            "AdaBoost": AdaBoostClassifier(),
         }
+
         params = {
-            'Decision Tree':{
-                'criterion':['gini','entropy','log_loss'],
+            "Decision Tree": {
+                "criterion": ["gini", "entropy", "log_loss"],
             },
-            'Random Forest':{
-                'n_estimators':[8,16,32,128,256]
+
+            "Random Forest": {
+                "n_estimators": [8, 16, 32, 128, 256]
             },
-            'Gradient Boosting':{
-                'learning_rate':[.1,.01,.05,.001],
-                'subsample':[0.6,0.7,0.75,0.85,0.9],
-                'n_estimators':[8,16,32,64,128,256]
+
+            "Gradient Boosting": {
+                "learning_rate": [0.1, 0.01, 0.05, 0.001],
+                "subsample": [0.6, 0.7, 0.75, 0.85, 0.9],
+                "n_estimators": [8, 16, 32, 64, 128, 256]
             },
-            'Logistic Regression':{},
-            'AdaBoost':{
-                'learning_rate':[.1,.01,.001],
-                'n_estimators':[8,16,32,64,128,256]
+
+            "Logistic Regression": {},
+
+            "AdaBoost": {
+                "learning_rate": [0.1, 0.01, 0.001],
+                "n_estimators": [8, 16, 32, 64, 128, 256]
             }
-
         }
-        model_report:dict=evaluate_models(x_train = x_train,y_train = y_train,x_test = x_test,y_test = y_test,models = models,param = params)
 
-        ## To get best model score from dict
-        best_model_score = max(sorted(model_report.values()))
+        # Evaluate candidate models
+        model_report = evaluate_models(
+            x_train=x_train,
+            y_train=y_train,
+            x_test=x_test,
+            y_test=y_test,
+            models=models,
+            param=params
+        )
 
-        ## To get best model name from dict
+        if not model_report:
+            raise ValueError(
+                "Model evaluation returned no results."
+            )
 
-        best_model_name = list(model_report.keys())[
-            list(model_report.values()).index(best_model_score)
-        ]
+        # Find best model score
+        best_model_score = max(model_report.values())
+
+        # Find best model name
+        best_model_name = max(
+            model_report,
+            key=model_report.get
+        )
+
         best_model = models[best_model_name]
+
+        logging.info(
+            f"Best model: {best_model_name}, "
+            f"score: {best_model_score}"
+        )
+
+        # ==========================================
+        # Training Evaluation
+        # ==========================================
 
         y_train_pred = best_model.predict(x_train)
 
-        classification_train_metric = get_classification_score(y_true = y_train,y_pred = y_train_pred)
-        ## Track the experiment with mlflow
-        # self.track_mlflow(best_model,classification_train_metric)
+        classification_train_metric = get_classification_score(
+            y_true=y_train,
+            y_pred=y_train_pred
+        )
+
+        # ==========================================
+        # Testing Evaluation
+        # ==========================================
 
         y_test_pred = best_model.predict(x_test)
-        classification_test_metric = get_classification_score(y_true=y_test,y_pred = y_test_pred)
-        # self.track_mlflow(best_model,classification_test_metric)
+
+        classification_test_metric = get_classification_score(
+            y_true=y_test,
+            y_pred=y_test_pred
+        )
+
+        # ==========================================
+        # Track Model Using MLflow
+        # ==========================================
+
+        self.track_mlflow(
+            best_model=best_model,
+            classification_train_metric=classification_train_metric,
+            classification_test_metric=classification_test_metric
+        )
+
+        # ==========================================
+        # Load Preprocessor
+        # ==========================================
 
         preprocessor = load_object(
-            file_path=self.data_transformation_artifact.transformed_object_file_path
+            file_path=(
+                self.data_transformation_artifact
+                .transformed_object_file_path
+            )
         )
 
-    # Create final_models directory
+        # ==========================================
+        # Save Model and Preprocessor
+        # ==========================================
+
         final_model_dir = "final_models"
-        os.makedirs(final_model_dir, exist_ok=True)
 
-    # Paths
-        model_path = os.path.join(final_model_dir, "model.pkl")
-        preprocessor_path = os.path.join(final_model_dir, "preprocessor.pkl")
-
-    # Save model
-        save_object(
-        file_path=model_path,
-        obj=best_model
+        os.makedirs(
+            final_model_dir,
+            exist_ok=True
         )
 
-    # Save preprocessor
-        save_object(
-        file_path=preprocessor_path,
-        obj=preprocessor
+        model_path = os.path.join(
+            final_model_dir,
+            "model.pkl"
         )
 
-    # Create combined NetworkModel
-        Network_model = NetworkModel(
-        preprocessor=preprocessor,
-        model=best_model
+        preprocessor_path = os.path.join(
+            final_model_dir,
+            "preprocessor.pkl"
         )
 
-    # Save combined model using your existing configured path
+        # Save trained model
         save_object(
-        file_path=self.model_trainer_config.trained_model_file_path,
-        obj=Network_model
+            file_path=model_path,
+            obj=best_model
+        )
+
+        # Save preprocessor
+        save_object(
+            file_path=preprocessor_path,
+            obj=preprocessor
+        )
+
+        # ==========================================
+        # Create Combined Network Model
+        # ==========================================
+
+        network_model = NetworkModel(
+            preprocessor=preprocessor,
+            model=best_model
+        )
+
+        # Save combined model
+        save_object(
+            file_path=(
+                self.model_trainer_config
+                .trained_model_file_path
+            ),
+            obj=network_model
         )
 
         print(f"Model saved at: {model_path}")
-        print(f"Preprocessor saved at: {preprocessor_path}")
+
         print(
-        f"Network model saved at: "
+            f"Preprocessor saved at: {preprocessor_path}"
+        )
+
+        print(
+            "Network model saved at: "
             f"{self.model_trainer_config.trained_model_file_path}"
-            )
+        )
+
+        # ==========================================
+        # Create Model Trainer Artifact
+        # ==========================================
 
         model_trainer_artifact = ModelTrainerArtifact(
-                        trained_model_file_path=self.model_trainer_config.trained_model_file_path,
-                        train_metric_artifact=classification_train_metric,
-                        test_metric_artifact=classification_test_metric,
-                        )
-        logging.info(f"Model trainer artifact: {model_trainer_artifact}")
+            trained_model_file_path=(
+                self.model_trainer_config.trained_model_file_path
+            ),
+            train_metric_artifact=classification_train_metric,
+            test_metric_artifact=classification_test_metric
+        )
+
+        logging.info(
+            f"Model trainer artifact: {model_trainer_artifact}"
+        )
+
         return model_trainer_artifact
 
-    def initiate_model_trainer(self)->ModelTrainerArtifact:
+    # ==========================================
+    # Initiate Model Training
+    # ==========================================
+
+    def initiate_model_trainer(self) -> ModelTrainerArtifact:
+
         try:
-            train_file_path = self.data_transformation_artifact.transformed_train_file_path
-            test_file_path = self.data_transformation_artifact.transformed_test_file_path
 
-            #Loding training array and testing array
-            train_arr = load_numpy_array_data(train_file_path)
-            test_arr = load_numpy_array_data(test_file_path)
-
-            x_train,y_train,x_test,y_test = (
-                train_arr[:,:-1],
-                train_arr[:,-1],
-                test_arr[:,:-1],
-                test_arr[:,-1],
+            train_file_path = (
+                self.data_transformation_artifact
+                .transformed_train_file_path
             )
 
-            model_trainer_artifact = self.train_model(x_train,y_train,x_test,y_test)
+            test_file_path = (
+                self.data_transformation_artifact
+                .transformed_test_file_path
+            )
+
+            # Load training and testing arrays
+            train_arr = load_numpy_array_data(
+                train_file_path
+            )
+
+            test_arr = load_numpy_array_data(
+                test_file_path
+            )
+
+            # Separate features and target
+            x_train = train_arr[:, :-1]
+            y_train = train_arr[:, -1]
+
+            x_test = test_arr[:, :-1]
+            y_test = test_arr[:, -1]
+
+            # Train and evaluate model
+            model_trainer_artifact = self.train_model(
+                x_train=x_train,
+                y_train=y_train,
+                x_test=x_test,
+                y_test=y_test
+            )
+
             return model_trainer_artifact
+
         except Exception as e:
-            raise NetworkSecurityException(e,sys)
+            raise NetworkSecurityException(e, sys)

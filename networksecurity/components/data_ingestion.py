@@ -17,6 +17,30 @@ from dotenv import load_dotenv
 load_dotenv()
 
 MONGO_DB_URL = os.getenv('MONGO_DB_URL')
+import os
+import pymongo
+import certifi
+from dotenv import load_dotenv
+
+load_dotenv()
+
+MONGO_DB_URL = os.getenv("MONGO_DB_URL")
+
+if not MONGO_DB_URL:
+    raise ValueError("MONGO_DB_URL is missing from the environment.")
+
+client = pymongo.MongoClient(
+    MONGO_DB_URL,
+    tls=True,
+    tlsCAFile=certifi.where(),
+    serverSelectionTimeoutMS=15000
+)
+
+# Verify that MongoDB is reachable
+client.admin.command("ping")
+
+print("MongoDB Atlas connection successful!")
+
 
 class DataIngestion:
     def __init__(self, data_ingestion_config: dataingestionconfig):

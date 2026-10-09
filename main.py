@@ -12,7 +12,9 @@ if __name__ == "__main__":
     try:
         trainingpipelineconfig = TrainingPipelineConfig()
         data_ingestion_config = dataingestionconfig(trainingpipelineconfig)
-        data_ingestion = DataIngestion(Data_Ingestion_Config=data_ingestion_config)
+        data_ingestion = DataIngestion(
+    data_ingestion_config=data_ingestion_config
+)
         logging.info("Initiating the data ingestion process.")
         dataingestionartifact = data_ingestion.initiate_data_ingestion()
         logging.info('Data Ingestion Completed.')
