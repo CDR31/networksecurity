@@ -5,41 +5,40 @@ from networksecurity.logging.logger import logging
 
 from networksecurity.entity.config_entity import dataingestionconfig
 from networksecurity.entity.artifact_entity import DataIngestionArtifact
+
 import os
 import sys
+
+import certifi
 import pymongo
 import pandas as pd
 import numpy as np
+
 from typing import List
+from dotenv import load_dotenv
 from sklearn.model_selection import train_test_split
-
-from dotenv import load_dotenv
-load_dotenv()
-
-MONGO_DB_URL = os.getenv('MONGO_DB_URL')
-import os
-import pymongo
-import certifi
-from dotenv import load_dotenv
-
 load_dotenv()
 
 MONGO_DB_URL = os.getenv("MONGO_DB_URL")
 
 if not MONGO_DB_URL:
-    raise ValueError("MONGO_DB_URL is missing from the environment.")
+    raise ValueError(
+        "MONGO_DB_URL is missing from the environment. "
+        "Please check your .env file."
+    )
 
 client = pymongo.MongoClient(
     MONGO_DB_URL,
     tls=True,
     tlsCAFile=certifi.where(),
-    serverSelectionTimeoutMS=15000
+    serverSelectionTimeoutMS=15000,
 )
 
-# Verify that MongoDB is reachable
 client.admin.command("ping")
 
 print("MongoDB Atlas connection successful!")
+
+
 
 
 class DataIngestion:
